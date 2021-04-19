@@ -1,0 +1,570 @@
+---
+title: "Manipulación de Datos en R"
+author: "Roosevelt J. Ubaldo Chavez"
+date: "24 de octubre del 2020"
+logo: logo.png
+output: 
+  ioslides_presentation:
+    incremental: true
+    smaller: true
+    transition: slower
+css: scrollable_slides.css
+---
+
+```{r setup, include=FALSE}
+  knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Algo de Teoría 
+
+## Conceptos clave
+
+**Datos:** medidas u observaciones de interés.
+
+**Unidad muestral:** elemento o individuo de la muestra
+
+**Variable:** característica de interés de un elemento
+
+## Tipos de Variables
+
+- **Numérica** valor es un número
+
+    - **Continua:** la variable puede tomar cualquier valor en un intervalo.
+    
+    - **Discreta:** la variable puede tomar una cantidad finita de valores numéricos diferentes.
+    
+- **Categórica** valor no es un número
+    - **Ordinal:** valores discretos que tienen un orden claro; excelente, bueno, mediocre, malo.
+    - **Nominal:** valores discretos sin un orden específico; blanco, negro, rojo, verde, azul.
+    
+## Población
+
+**Población:** conjunto de todos los individuos o elementos de interés
+
+**Muestra:** subconjunto de la población, idealmente se espera que la muestra sea representativa de la población.
+
+# Comandos Básicos
+
+## Leer y escribir datos
+
+La carga de datos dependerá del formato en el cual se encuentren.
+Los formatos más comunes son `.csv`, `.txt` y `.xlsx`. Para cargalos bastará usar los siguientes comandos para cada caso respectivamente.
+
+```{r echo=TRUE, eval=FALSE}
+data_csv <- read.csv("data.csv", header = FALSE, sep = ",")
+data_txt <- read.table("data.txt", header = FALSE, sep = " ")
+library("xlsx")
+data_excel <- read.xlsx("my_excel.xls", header = FALSE)
+
+```
+Para escribir cualquier data en un archivo, de acuerdo al formato que estemos empleando dependederá el comando a utilizar.
+
+```{r echo=TRUE, eval=FALSE}
+write.csv(data_csv, sep = ";", file = "mydata.csv", fileEncoding = "utf8")
+write.table(data_txt, file = "mydata.txt", sep = " ")
+write.xlsx(data_excel, file="mydata.xlsx")
+```
+
+## Análisis exploratorio
+
+Luego de leer un archivo, podremos visualizar los primeros o últimos seis registros para darnos una idea de la estructura y variables que posee la data que estamos analizando. 
+
+```{r echo=TRUE}
+data_covid <- read.csv("data.csv")  #Cargar la data
+head(data_covid)                    # 6 primeros
+tail(data_covid)                    # 6 ultimos
+```
+
+
+## Análisis exploratorio (cont.)
+
+Otros comandos de utilidad serán:
+
+```{r, echo=TRUE}
+dim(data_covid) #dimension 
+nrow(data_covid) #numero de filas
+ncol(data_covid) #numero de filas
+names(data_covid) #nombre de las variables
+str(data_covid)   #structura del dataset
+```
+
+
+## Limpiar los datos
+
+Datos incompletos o vacios pueden alterar el análisis y por ende sesgar los resultados. Por ello siempre será importante realizar la limpieza de nuestro dataset antes de realizar cualquier inferencia.
+
+```{r echo=T}
+isna <- is.na(cars) #nos indica los datos faltantes
+table(isna)
+```
+
+```{r echo=T}
+cc <- complete.cases(cars) #nos indica las filas completas (sin NAs)
+table(cc)
+```
+
+
+## Unificar el formato
+
+En algunas ocasiones la data registrada no es uniforme. 
+
+Por ejemplo si tenemos una columna de distritos, algunos podrían escribir a **San Juan de Lurigancho** como `"SJL"`, `"San Juan de Lurigancho"` o `"SAN JUAN DE LURIGANCHO"`, y todos estos valores hacen referencia al mismo valor. 
+```{r eval=T}
+levels(data_covid$DISTRITO)
+```
+
+## Unificar el formato (cont.)
+
+En este caso si deseamos unificar todas las referencias a San Juan de Lurigancho de una única manera, aplicaremos el comando `replace()`.
+
+```{r echo=T, eval=F}
+data_covid$DISTRITO<-replace(data_covid$DISTRITO, 
+                             data_covid$DISTRITO == "SJL",
+                             "SAN JUAN DE LURIGANCHO") 
+data_covid$DISTRITO<-replace(data_covid$DISTRITO, 
+                             data_covid$DISTRITO ==
+                              "San Juan de Lurigancho",
+                             "SAN JUAN DE LURIGANCHO") 
+```
+
+Otra manera de hacer lo mismo será:
+
+```{r echo=T, eval=F}
+ids <- which(data_covid$DISTRITO=="SAN JUAN DE LURIGANCHO" | 
+               data_covid$DISTRITO=="SJL")
+
+for (i in ids) {
+  data_covid[i,1] <- "San Juan de Lurigancho"
+}
+```
+## Unificar el formato (cont.)
+
+En ambos casos obtendremos:
+
+```{r echo=T}
+table(data_covid$DISTRITO)
+```
+# Estadística Descriptiva
+
+## Medidas de Tendencia Central
+
+Podemos calcular las diferentes medidas de tendencia central de la siguiente manera:
+
+```{r echo=T}
+mean(data_covid$EDAD)  #promedio
+median(data_covid$EDAD) #mediana
+sd(data_covid$EDAD)   #desviacion estandar
+min(data_covid$EDAD)  #minimo
+max(data_covid$EDAD)  #maximo
+quantile(data_covid$EDAD) #quantiles
+```
+Podemos hacer todo lo anterior en un solo comando.
+```{r echo=T}
+summary(data_covid$EDAD)
+```
+## Medidas de Tendencia Central (cont.)
+
+### ¿Y la moda?
+
+
+No existe un comando directo para calcular la moda (a no ser que descargues un paquete extra o crees una función para calcularla).
+
+```{r echo=T}
+modamia <-function(x){
+  tabla<-table(x)
+  resultado<-which.max(tabla)
+  return (names(resultado))
+}
+modamia(data_covid$EDA)
+```
+
+## Medidas de Tendencia Central (Bonus)
+
+### ¿Sesgo izquierdo o derecho?
+```{r, echo=T}
+hist(data_covid$EDAD, breaks = 100)
+abline(v = mean(data_covid$EDAD), col = "blue", lwd = 2)
+```
+
+# Transformación y manipulación de la data
+
+## Dplyr
+
+**dplyr** es un paquete poderoso que nos ayuda a transformar y sintetizar la data de lasa filas y las columnas. Para mayor información consultar el siguiente [enlace](http://cran.rstudio.com/web/packages/dplyr/vignettes/introduction.html)
+
+El paquete contiene funciones para algunas tareas de manipulación de datos conocidas, tales como filtrar filas, seleccionar columnas, añadir nuevas columnas, ordenar filas o resumir la data. Asimismo, posee algunas funciones útiles para tares que incluir el concepto de "divide y combina".
+
+
+## ¿Como lo obtengo? 
+
+Lo descargo con:
+
+```{r, eval=FALSE, echo=T}
+install.packages("dplyr")
+```
+
+Lo cargo con:
+
+```{r, message=FALSE,echo=T}
+library(dplyr)
+```
+
+## Data: Mammals Sleep
+
+El msleep (mammals sleep) contiene información sobre los tiempos de sueño y el peso de ciertos mamíferos. Está disponible en el repo de "dagdata" en github. Tiene 83 filas con 11 variables.
+
+Se puede descargar desde en formato CSV desde: [here](https://raw.githubusercontent.com/genomicsclass/dagdata/master/inst/extdata/msleep_ggplot2.csv), and then load into R:
+
+```{r echo=T}
+url <- "https://raw.githubusercontent.com/genomicsclass/dagdata/master/inst/extdata/msleep_ggplot2.csv"
+msleep <- read.csv(url)
+head(msleep)
+
+```
+
+## Data: Mammals Sleep (cont.)
+Las columnas corresponden a las siguientes variables: 
+
+column name | Descripción
+--- | ---
+name | Nombre
+genus | Rango taxonómico
+vore | Carnivoro, herbivoro o omnivoro?
+order | Rango taxonómico
+conservation | Estado de conservación
+sleep\_total | Total de horas de sueño
+sleep\_rem | sueño REM, en horas
+sleep\_cycle | Larco de un ciclo de sueño
+awake | Horas despierto
+brainwt | Peso del cerebro, en kilogramos
+bodywt | Peso del cuerpo, en kilogramos
+
+
+## Important dplyr Verbs To Remember
+
+dplyr verbs | Description
+--- | ---
+`select()` | select columns 
+`filter()` | filter rows
+`arrange()` | re-order or arrange rows
+`mutate()` | create new columns
+`summarise()` | summarise values
+`group_by()` | allows for group operations in the "split-apply-combine" concept
+
+
+# dplyr Verbs In Action
+
+Las dos funciones más utilizadas son `select()` y `filter()`, que seleccionan columnas y filtran filas respectivamente.
+
+## Selecting Columns Using `select()`
+
+Vamos a probar select seleccionando "name" y "sleep\_total" 
+
+```{r echo=T}
+sleepData <- select(msleep, name, sleep_total)
+head(sleepData)
+```
+
+Para seleccionar todas las columnas *menos* una específica, usa el operador "-" de sustracción (también conocido cono el "negative indexing")
+
+```{r echo=T}
+head(select(msleep, -name))
+```
+Seleccionas un rango de columnas por nombre usando el operador ":"
+
+
+```{r echo=T}
+head(select(msleep, name:order))
+```
+Para seleccionar todas las columnas que empiezan con una cadena de caracteres específica, usamos la función `starts_with()`:
+
+```{r echo=T}
+head(select(msleep, starts_with("sl")))
+```
+Funciones adicionales para la selección de columnas basada en un criterio específico:
+
+1. `ends_with()` = Selecciona columnas que terminen con una cadena de caracteres específica.
+2. `contains()` = Selecciona columnas que contengan una cadena de caracteres específica.
+3. `matches()` = Selecciona columnas que se adecúen a una expresión regular.
+4. `one_of()` = Selecciona columnas que son parte de un grupo de nombres.
+
+
+## Selecting Rows Using `filter()`
+
+Filtra las filas de mamíferos que duermen en total más de 16 horas.
+
+```{r echo=T}
+filter(msleep, sleep_total >= 16)
+```
+
+Filtra las filas de mamíferos que duermen en total más de 16 horas *y* tienen un peso corporal de más de 1kg.
+
+```{r echo=T}
+filter(msleep, sleep_total >= 16, bodywt >= 1)
+```
+Filtra las filas de mamíferos en el orden taxonómico perisodáctilo y primate.
+
+```{r echo=T}
+filter(msleep, order %in% c("Perissodactyla", "Primates"))
+```
+Se pueden usar los operadores booleanos (e.g. >, <, >=, <=, !=, %in%) para crear pruebas lógicas.
+# Pipe Operator: %>%
+
+Antes de proseguir, hay que explicar el pipe operator: %>%. Dplyr importa este operador de otro paquete (magrittr). Con él, puedes "pipe" o conectar la salida (output) de una función con la entrada (input) de otra. Esto permite reducir la cantidad de veces que se requirere anidar funciones( Se leen desde el interior hacia el exterior), la idea de "piping" es que se lean las funciones de izquierda a derecha.
+
+Usemos un ejemplo que ya hemos visto:
+
+```{r echo=T}
+head(select(msleep, name, sleep_total))
+```
+
+Vamos a "pipear" el data frame msleep a otra función que seleccionará dos columnas (nombre y sleep\_total) y luego conectaremos este data frame con la función `head()`, que nos devolverá la cabeza del nuevo data frame.
+
+```{r echo=T}
+msleep %>% 
+    select(name, sleep_total) %>% 
+    head
+```
+Se verá la utilidad de este operador cuando se empieza a combinar funciones.
+
+# Back To dplyr Verbs In Action
+
+Utilizaremos el operador "pipe" en el resto del tutorial.
+
+## Arrange Or Re-order Rows Using `arrange()`
+
+Para ordenar (o reordenar) filas bajo una columna en particular, como el orden taxonómico, lita el nombre de la columna cuyas filas requieres reordenar:
+
+```{r echo=T}
+msleep %>% arrange(order) %>% head
+```
+Ahora, seleccionamos tres columnas de msleep, ordenaremos las filas por el orden taxonómico, y de ahí ordenaremos nuevamoente por sleep\_total. Finalmente, se mostrará la cabeza del data frame.
+
+```{r echo=T}
+msleep %>% 
+    select(name, order, sleep_total) %>%
+    arrange(order, sleep_total) %>% 
+    head
+```
+Hacemos lo mismo que el ejemplo de arriba, excepto que acá filtramos las filas por los mamíferos que duermen 16 horas o más en vez de mostrar la cabeza del data frame.
+
+```{r echo=T}
+msleep %>% 
+    select(name, order, sleep_total) %>%
+    arrange(order, sleep_total) %>% 
+    filter(sleep_total >= 16)
+```
+
+Para aumentar la complejidad de las operaciones, realizamos lo mismo que en ejemplo anterior, excepto que ordenamos las filas en la columna sleep\_total en un orden descendiente. Usamos la función `desc()` 
+
+```{r echo=T}
+msleep %>% 
+    select(name, order, sleep_total) %>%
+    arrange(order, desc(sleep_total)) %>% 
+    filter(sleep_total >= 16)
+```
+
+
+## Create New Columns Using `mutate()`
+
+La función `mutate()` añadirá nuevas columnas al data frame. Crearemos una nueva columna llamada rem_proportion, la cual representará el ratio de sueño REM al total de horas de sueño.
+
+
+```{r echo=T}
+msleep %>% 
+    mutate(rem_proportion = sleep_rem / sleep_total) %>%
+    head
+```
+
+Puedes añadir varias columnas usando mutate (separadas por comas). En el ejemplo, añadimos una segunda columna llamada bodywt_grams, la cual representa la columna bodywt, pero en gramos.
+
+```{r echo=T}
+msleep %>% 
+    mutate(rem_proportion = sleep_rem / sleep_total, 
+           bodywt_grams = bodywt * 1000) %>%
+    head
+```
+
+## Create summaries of the data frame using `summarise()`
+
+La función `summarise()` creará un resumen de estadisticas para una columna específica en el data frame, como encontrar la media. Por ejemplo, para computar el promedio de horas de sueño, aplicamos la función `mean()` a la columna sleep\_total y luego llamamos al valor resumido avg\_sleep.
+
+
+```{r echo=T}
+msleep %>% 
+    summarise(avg_sleep = mean(sleep_total))
+```
+Hay muchas otros resumenes de estadísticas uno podría considerar, como `sd()`, `min()`, `max()`, `median()`, `sum()`, `n()` (devuelve el largo de un vector), `first()` (devuelve el primer valor de un vector), `last()` (devuelve el último valor de un vector) and `n_distinct()` (número de valores distintos dentro de un vector). 
+
+```{r echo=T}
+msleep %>%    summarise(avg_sleep = mean(sleep_total), 
+              min_sleep = min(sleep_total),
+              max_sleep = max(sleep_total),
+              total = n())
+```
+
+    
+## Group operations using `group_by()`
+
+La función `group_by()` es parte importante en dplyr. Como se ha mencionado previamente, se relaciona al concepto de "split-apply-combine". Lo que se hace es es "partir" el data frame en base a alguna variable ( e.g. orden taxonómico), se aplica una función a los data frames indicifuales y de ahí, se combinan ambas partes.
+
+Probemos esto: Separemos el data frame msleep por el orden taxonómico y pidamos un resumen de las estadísticas como en el ejemplo previo. Esperamos un set de resumenes de estadísticas para cada orden taxonómico.
+
+**Remember** a shorcut of the pipe operator is `cntrl+shift+M`
+```{r echo=T}
+msleep %>% 
+    group_by(order) %>%
+    summarise(avg_sleep = mean(sleep_total), 
+              min_sleep = min(sleep_total), 
+              max_sleep = max(sleep_total),
+              total = n())
+```
+
+# Visualización
+
+## ggplot2
+la librería ggplot2 es s un sistema organizado de visualización de datos.Es implementación de las ideas recogidas en el artículo de The Language of Graphics escrito por Leland Wilkinson.
+
+
+## ¿Como lo obtengo? 
+
+Lo descargo con:
+
+```{r, eval=FALSE, echo=T}
+# Puedes instalarlo bajandote "TidyVerse":
+install.packages("tidyverse")
+
+# Alternativamente, puedes instalar ggplop2:
+install.packages("ggplot2")
+
+# O la version de dev desde GitHub:
+# install.packages("devtools")
+devtools::install_github("tidyverse/ggplot2")
+```
+
+Lo cargo con:
+
+```{r echo=T}
+library(ggplot2)
+```
+
+
+## Gráfico de dispersión
+
+```{r echo=T}
+iris %>% 
+  ggplot(aes(x = Petal.Length, y = Petal.Width)) + 
+  geom_point() + geom_smooth(method=lm , color="red", se=FALSE) + 
+  ggtitle("Petal length vs Petal width")
+```
+
+## Gráfico de Burbujas
+
+```{r echo=T}
+# The dataset is provided in the gapminder library
+library(gapminder)
+data <- gapminder %>% filter(year=="2007") %>% dplyr::select(-year)
+
+# Most basic bubble plot
+data %>%
+  arrange(desc(pop)) %>%
+  mutate(country = factor(country, country)) %>%
+  ggplot(aes(x=gdpPercap, y=lifeExp, size = pop)) +
+    geom_point(alpha=0.5) +
+    scale_size(range = c(.1, 24), name="Population (M)")
+```
+
+
+## Histograma
+
+```{r echo=T}
+# Load dataset from github
+data <- read.table("https://raw.githubusercontent.com/holtzy/data_to_viz/master/Example_dataset/1_OneNum.csv", header=TRUE)
+
+# plot
+p <- data %>%
+  filter( price<300 ) %>%
+  ggplot( aes(x=price)) +
+    geom_histogram( binwidth=3, fill="#69b3a2", color="#e9ecef", alpha=0.9) +
+    ggtitle("Bin size = 3") 
+p
+```
+
+
+
+## Gráfico de barras
+
+```{r echo=T}
+# Create data
+data <- data.frame(
+  name=c("A","B","C","D","E") ,  
+  value=c(3,12,5,18,45)
+  )
+
+# Barplot
+ggplot(data, aes(x=name, y=value)) + 
+  geom_bar(stat = "identity")
+```
+
+
+## Gráfico de Cajas y Bigotes
+
+```{r echo=T}
+# create a dataset
+data <- data.frame(
+  name=c( rep("A",500), rep("B",500), rep("B",500), rep("C",20), rep('D', 100)  ),
+  value=c( rnorm(500, 10, 5), rnorm(500, 13, 1), rnorm(500, 18, 1), rnorm(20, 25, 4), rnorm(100, 12, 1) )
+)
+
+# Plot
+data %>%
+  ggplot( aes(x=name, y=value, fill=name)) +
+    geom_boxplot() +
+    geom_jitter(color="black", size=0.4, alpha=0.9) +
+    theme(
+      legend.position="none",
+      plot.title = element_text(size=11)
+    ) +
+    ggtitle("A boxplot with jitter") +
+    xlab("")
+```
+
+
+
+## Grafico de Mosaico
+
+```{r echo=T}
+
+# Dummy data
+x <- LETTERS[1:20]
+y <- paste0("var", seq(1,20))
+data <- expand.grid(X=x, Y=y)
+data$Z <- runif(400, 0, 5)
+ 
+# Heatmap 
+ggplot(data, aes(X, Y, fill= Z)) + 
+  geom_tile()
+```
+
+
+
+## Animación (Bonus)
+
+```{r echo=T, eval=F}
+library(gganimate)
+ 
+# Make a ggplot, but add frame=year: one image per year
+ggplot(gapminder, aes(gdpPercap, lifeExp, size = pop, color = continent)) +
+  geom_point() +
+  scale_x_log10() +
+  theme_bw() +
+  # gganimate specific bits:
+  labs(title = 'Year: {frame_time}', x = 'GDP per capita', y = 'life expectancy') +
+  transition_time(year) +
+  ease_aes('linear')
+
+# Save at gif:
+anim_save("271-ggplot2-animated-gif-chart-with-gganimate1.gif")
+```
+
+!["271-ggplot2-animated-gif-chart-with-gganimate1.gif"]("271-ggplot2-animated-gif-chart-with-gganimate1.gif")
