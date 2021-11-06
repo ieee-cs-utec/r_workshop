@@ -1,11 +1,12 @@
 ---
 title: "Manipulación de Datos en R"
 author: "Roosevelt J. Ubaldo Chavez"
-date: "24 de octubre del 2020"
-logo: logo.png
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+logo: logo-1.png
 output: 
   ioslides_presentation:
     incremental: true
+    widescreen: true
     smaller: true
     transition: slower
 css: scrollable_slides.css
@@ -240,21 +241,17 @@ brainwt | Peso del cerebro, en kilogramos
 bodywt | Peso del cuerpo, en kilogramos
 
 
-## Important dplyr Verbs To Remember
+## Algunos comandos a tener en cuenta
 
 dplyr verbs | Description
 --- | ---
-`select()` | select columns 
-`filter()` | filter rows
-`arrange()` | re-order or arrange rows
-`mutate()` | create new columns
-`summarise()` | summarise values
-`group_by()` | allows for group operations in the "split-apply-combine" concept
+`select()` | seleccionar columnas
+`filter()` | filtrar filas
+`arrange()` | ordenar filas
+`mutate()` | crear nuevas columnas
+`summarise()` | resumir valores
+`group_by()` | permitir operaciones grupales bajo el concepto de "split-apply-combine" 
 
-
-# dplyr Verbs In Action
-
-Las dos funciones más utilizadas son `select()` y `filter()`, que seleccionan columnas y filtran filas respectivamente.
 
 ## Selecting Columns Using `select()`
 
@@ -308,7 +305,8 @@ Filtra las filas de mamíferos en el orden taxonómico perisodáctilo y primate.
 filter(msleep, order %in% c("Perissodactyla", "Primates"))
 ```
 Se pueden usar los operadores booleanos (e.g. >, <, >=, <=, !=, %in%) para crear pruebas lógicas.
-# Pipe Operator: %>%
+
+## Pipe Operator: %>% {.build}
 
 Antes de proseguir, hay que explicar el pipe operator: %>%. Dplyr importa este operador de otro paquete (magrittr). Con él, puedes "pipe" o conectar la salida (output) de una función con la entrada (input) de otra. Esto permite reducir la cantidad de veces que se requirere anidar funciones( Se leen desde el interior hacia el exterior), la idea de "piping" es que se lean las funciones de izquierda a derecha.
 
@@ -317,6 +315,8 @@ Usemos un ejemplo que ya hemos visto:
 ```{r echo=T}
 head(select(msleep, name, sleep_total))
 ```
+
+## {.build}
 
 Vamos a "pipear" el data frame msleep a otra función que seleccionará dos columnas (nombre y sleep\_total) y luego conectaremos este data frame con la función `head()`, que nos devolverá la cabeza del nuevo data frame.
 
@@ -449,6 +449,72 @@ library(ggplot2)
 ```
 
 
+## Objetos ggplot
+
+El primer paso antes de crear un grafico usando **ggplot2** es declarar un objeto `ggplot`. Para esto tenemos dos alternativas:
+
+- Declararlo dentro de la función:
+
+```{r echo=T}
+ggplot(data=iris)
+#ggplot(iris)
+```
+
+---
+- Usar el *pipe* operator
+
+```{r echo=TRUE}
+iris %>% ggplot()
+```
+
+--- 
+
+En los ejemplos anteriores, dado que no se asignaron a una variable, directamente se ejecutó el ccódigo. En cambio, si deseamos asignar el grafico a un objeto podemos hacerlo así:
+
+```{r echo=TRUE}
+my_plot <- ggplot(iris)
+my_plot
+```
+
+
+## {.build}
+
+### **Capas en ggplot**
+
+Cuando creamos gráficos en ggplot, los hacemos usango capas. Cada capa puede definir geometrias, ecales, estilos, etc. Para añadir una capa al gráfico, usaremos `+`. Una de las primeras capas que añadiremos serán las de geometria, que definen el tipo de grafico que vamos a crear
+
+```{r echo=TRUE, eval=FALSE}
+iris %>% ggplot() + geom_point()
+```
+
+
+### **Aesthetics**
+
+Los aesthetics definen como propiedades del dataset se conectan con las caracteristicas del gráfico. 
+
+
+```{r echo=TRUE}
+iris %>% ggplot() + geom_point(aes(x = Petal.Length, y = Petal.Width))
+```
+## {.build}
+
+Nosotros podemos seguir añadiendo capas para adecuar el grafico a nuestros requerimientos. Por ejemplo, podemos añadir una capa con una linea de tendencia y otra con rótulos.
+
+```{r echo=T}
+iris %>% ggplot(aes(x = Petal.Length, y = Petal.Width)) + geom_point() + geom_smooth(method=lm , color="red", se=FALSE) +  ggtitle("Petal length vs Petal width")
+```
+
+
+## {.build}
+
+### **Usar categorias como colores**
+
+Tambien podemos coloear las observaciones usando un color especifico o usando los valores de alguna variable categorica.
+
+```{r echo=T}
+iris %>% ggplot(aes(x = Petal.Length, y = Petal.Width, col=Species)) + geom_point() + geom_smooth(method=lm , color="red", se=FALSE) +  ggtitle("Petal length vs Petal width")
+```
+
 ## Gráfico de dispersión
 
 ```{r echo=T}
@@ -553,18 +619,14 @@ ggplot(data, aes(X, Y, fill= Z)) +
 ```{r echo=T, eval=F}
 library(gganimate)
  
-# Make a ggplot, but add frame=year: one image per year
-ggplot(gapminder, aes(gdpPercap, lifeExp, size = pop, color = continent)) +
-  geom_point() +
-  scale_x_log10() +
-  theme_bw() +
-  # gganimate specific bits:
-  labs(title = 'Year: {frame_time}', x = 'GDP per capita', y = 'life expectancy') +
-  transition_time(year) +
-  ease_aes('linear')
+datos = gapminder
+grafico <- datos %>%
+  ggplot() + 
+    geom_point(aes(x = gdpPercap, y = lifeExp, col = continent, size = pop), alpha = 0.8) + theme_minimal() + 
+    theme(legend.position = "bottom") + guides(size = "none") + 
+    labs(x = "PIB per Capita" ,y = "Esperanza de Vida",  col = "") 
 
-# Save at gif:
-anim_save("271-ggplot2-animated-gif-chart-with-gganimate1.gif")
+grafico +
+  transition_time(year)
 ```
-
-!["271-ggplot2-animated-gif-chart-with-gganimate1.gif"]("271-ggplot2-animated-gif-chart-with-gganimate1.gif")
+![](demo.gif)
